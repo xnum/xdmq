@@ -9,7 +9,7 @@ void on_cli_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 
     cli_ctx_t *ctx = container_of((uv_tcp_t*)cli, cli_ctx_t, client);
     buffer_produced(ctx->buff, st);
-    int consume = ctx->r_cb(buffer_begin(ctx->buff), buffer_size(ctx->buff));
+    int consume = ctx->r_cb(ctx->node_id, buffer_begin(ctx->buff), buffer_size(ctx->buff));
     buffer_consume(ctx->buff, consume);
 }
 
