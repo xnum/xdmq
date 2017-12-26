@@ -1,0 +1,8 @@
+# Xnum Distributed Message Queue
+
+## Reqs
+
+- libuv
+- raft
+- msgpack
+- rpc ?
