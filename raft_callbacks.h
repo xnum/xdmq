@@ -2,25 +2,8 @@
 
 #include <msgpack.h>
 #include "raft.h"
+#include "raft_ext.h"
 #include "client.h"
-
-typedef enum
-{
-    /** Handshake is a special non-raft message type
-     *      * We send a handshake so that we can identify ourselves to our peers */
-    MSG_HANDSHAKE,
-    /** Successful responses mean we can start the Raft periodic callback */
-    MSG_HANDSHAKE_RESPONSE,
-    /** Tell leader we want to leave the cluster */
-    /* When instance is ctrl-c'd we have to gracefuly disconnect */
-    MSG_LEAVE,
-    /* Receiving a leave response means we can shutdown */
-    MSG_LEAVE_RESPONSE,
-    MSG_REQUESTVOTE,
-    MSG_REQUESTVOTE_RESPONSE,
-    MSG_APPENDENTRIES,
-    MSG_APPENDENTRIES_RESPONSE,
-} peer_message_type_e;
 
 
 int send_requestvote(
@@ -38,3 +21,41 @@ int send_appendentries(
         );
 
 
+int applylog(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *ety
+        );
+
+int persist_term(
+        raft_server_t* raft,
+        void *udata,
+        const int current_term
+        );
+
+int persist_vote(
+        raft_server_t* raft,
+        void *udata,
+        const int voted_for
+        );
+
+int logentry_offer(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *ety,
+        int ety_idx
+        );
+
+int logentry_poll(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *entry,
+        int ety_idx
+        );
+
+int logentry_pop(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *entry,
+        int ety_idx
+        );

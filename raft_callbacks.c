@@ -51,12 +51,10 @@ int send_appendentries(
     msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
 
     msgpack_pack_int(&pk, MSG_APPENDENTRIES);
-    msgpack_pack_int(&pk, m->term);
-    msgpack_pack_int(&pk, m->prev_log_idx);
-    msgpack_pack_int(&pk, m->prev_log_term);
-    msgpack_pack_int(&pk, m->leader_commit);
-    msgpack_pack_int(&pk, m->n_entries);
+    msgpack_pack_bin(&pk, sizeof(msg_appendentries_t));
+    msgpack_pack_bin_body(&pk, m, sizeof(msg_appendentries_t));
 
+    // TODO log?
     /* let us ignore log */
 
     uv_buf_t bufs[1];
@@ -71,3 +69,59 @@ int send_appendentries(
 
 }
 
+int applylog(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *ety
+        )
+{
+    return 0;
+}
+
+int persist_term(
+        raft_server_t* raft,
+        void *udata,
+        const int current_term
+        )
+{
+    return 0;
+}
+
+int persist_vote(
+        raft_server_t* raft,
+        void *udata,
+        const int voted_for
+        )
+{
+    return 0;
+}
+
+int logentry_offer(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *ety,
+        int ety_idx
+        )
+{
+    return 0;
+}
+
+int logentry_poll(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *entry,
+        int ety_idx
+        )
+{
+    return 0;
+}
+
+int logentry_pop(
+        raft_server_t* raft,
+        void *udata,
+        raft_entry_t *entry,
+        int ety_idx
+        )
+{
+    return 0;
+}
