@@ -56,6 +56,13 @@ int send_appendentries(
 
     // TODO log?
     /* let us ignore log */
+    for(int i = 0; i < m->n_entries; ++i) {
+        msgpack_pack_bin(&pk, sizeof(msg_entry_t));
+        msgpack_pack_bin_body(&pk, &m->entries[i], sizeof(msg_entry_t));
+        //msgpack_pack_int(&pk, m->entries[i].data.len);
+        msgpack_pack_bin(&pk, m->entries[i].data.len);
+        msgpack_pack_bin_body(&pk, m->entries[i].data.buf, m->entries[i].data.len);
+    }
 
     uv_buf_t bufs[1];
     bufs[0] = uv_buf_init(sbuf.data, sbuf.size);
@@ -75,6 +82,7 @@ int applylog(
         raft_entry_t *ety
         )
 {
+    //slogf(INFO, "applying log %s\n", ety->data.buf);
     return 0;
 }
 
@@ -103,6 +111,7 @@ int logentry_offer(
         int ety_idx
         )
 {
+    slogf(INFO, "offer log %s\n", ety->data.buf);
     return 0;
 }
 

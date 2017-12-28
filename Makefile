@@ -3,7 +3,7 @@ INC=-I/home/num/raft/include
 CFLAGS=-fPIC -O0 $(INC) -g
 LDFLAGS=-luv -L/home/num/raft -lraft -lmsgpackc
 
-OBJS=main.o server.o client.o buffer.o raft_callbacks.o
+OBJS=main.o server.o client.o buffer.o raft_callbacks.o produce.o
 
 all: main
 

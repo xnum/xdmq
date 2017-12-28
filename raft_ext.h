@@ -12,12 +12,15 @@ typedef struct
         msg_appendentries_t ae;
         msg_appendentries_response_t aer;
     };
+    int reserved;
     int padding[100];
 } msg_t;
 
 enum msg_stat {
     NONE = 0,
     AE,
+    AE_ENTRIES,
+    AE_ENTRY_BODY,
     AER,
     RV,
     RVR,
