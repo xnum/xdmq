@@ -6,6 +6,7 @@
 #include "client.h"
 #include "produce.h"
 #include "raft_callbacks.h"
+#include "persist.h"
 
 #define PERIOD 1000
 
@@ -148,7 +149,7 @@ int read_pac(int node_id, const char* addr, int len)
                 if(msgs[node_id].ae.n_entries)
                     slogf(DEBUG, "Append Entry entries# = %d\n", msgs[node_id].ae.n_entries);
                 msg_appendentries_response_t aer;
-                raft_recv_appendentries(raft, ctxs[node_id].node, &msgs[node_id].ae, &aer);
+                int e = raft_recv_appendentries(raft, ctxs[node_id].node, &msgs[node_id].ae, &aer);
 
                 send_appendentries_response(&ctxs[node_id], &aer);
             }
@@ -270,10 +271,13 @@ int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
 
+
     assert(argc == 3);
     int id = atoi(argv[1]);
     int total = atoi(argv[2]);
     slogf(INFO, "id = %d\n", id);
+
+    persist_init("xdmq.mmap", id);
 
     uv_timer_init(uv_default_loop(), &timer);
     uv_timer_start(&timer, on_time, 0, PERIOD);
@@ -281,6 +285,18 @@ int main(int argc, char **argv)
     raft = raft_new();
     for(int i = 0; i < total; ++i)
         ctxs[i].node = raft_add_node(raft, &ctxs[i], i, id == i);
+
+    int t = get_term();
+    int v = get_vote();
+    int idx = get_cmt_idx();
+    if(t != -1)
+        raft_set_current_term(raft, t);
+    if(v != -1)
+        raft_vote_for_nodeid(raft, v);
+    persist_load_entries(raft);
+    if(idx != -1)
+        raft_set_commit_idx(raft, idx);
+
 
     raft_cbs_t raft_callbacks = {
         .send_requestvote            = send_requestvote,
@@ -291,13 +307,12 @@ int main(int argc, char **argv)
         .log_offer                   = logentry_offer,
         .log_poll                    = logentry_poll,
         .log_pop                     = logentry_pop,
-        .log                         = NULL
+        .log                         = log
     };
 
     char* user_data = "test";
 
     raft_set_callbacks(raft, &raft_callbacks, user_data);
-
 
     /* TCP */
 

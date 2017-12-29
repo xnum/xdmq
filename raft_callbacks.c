@@ -1,4 +1,5 @@
 #include "raft_callbacks.h"
+#include "persist.h"
 
 
 #define RAFT_BUFLEN 512
@@ -82,7 +83,8 @@ int applylog(
         raft_entry_t *ety
         )
 {
-    //slogf(INFO, "applying log %s\n", ety->data.buf);
+    slogf(INFO, "applying log %s\n", ety->data.buf);
+    set_committed_index(raft_get_commit_idx(raft));
     return 0;
 }
 
@@ -92,6 +94,8 @@ int persist_term(
         const int current_term
         )
 {
+    slogf(INFO, "persist_term %d\n", current_term);
+    set_term(current_term);
     return 0;
 }
 
@@ -101,6 +105,7 @@ int persist_vote(
         const int voted_for
         )
 {
+    set_vote(voted_for);
     return 0;
 }
 
@@ -112,6 +117,7 @@ int logentry_offer(
         )
 {
     slogf(INFO, "offer log %s\n", ety->data.buf);
+    persist_entry(ety);
     return 0;
 }
 
