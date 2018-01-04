@@ -1,8 +1,35 @@
 # Xnum Distributed Message Queue
 
+I don't force SYNC any data to disk but mmaped-file.
+
 ## Reqs
 
 - libuv
 - raft
 - msgpack
-- rpc ?
+
+## For producer
+
+send TCP Packet which follows `msg.h` spec
+
+pick up a random 64bit id to identify your message, duplication is acceptable but just confuse yourself.
+
+The id may be used to filter duplicated message in the future.
+
+Once the message has been committed, server replys you id with OK or Error.
+
+The process flow is async so you don't have to wait.
+
+Connect to a random node, if it's not the leader, it'll tell you and close connection.
+
+## For consumer
+
+send line-end message
+
+`GET N M` results the message index from N to M (less than)
+
+`INFO` results current last index 
+
+## Performance
+
+1024 * 256 messages from seperate 4 producers => 54s
