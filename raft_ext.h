@@ -47,5 +47,5 @@ typedef enum
 
 typedef struct
 {
-    int node_id;
+    int64_t node_id;
 } msg_handshake_t;

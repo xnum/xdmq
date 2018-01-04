@@ -4,7 +4,7 @@
 uv_tcp_t server;
 read_cb cb = NULL;
 
-static void handle_close(uv_tcp_t *cli)
+static void handle_close(uv_handle_t *cli)
 {
     free(cli->data);
     free(cli);
@@ -14,7 +14,7 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 {
     if(st < 0) {
         slogf(ERR, "%s\n", se(st));
-        uv_close(cli, handle_close);
+        uv_close((uv_handle_t*) cli, handle_close);
         return;
     }
 
@@ -24,12 +24,12 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
     while(buffer_size(t)) {
         if(t->data != INT_MAX) {
             //slogf(DEBUG, "consume packet %d\n", buffer_size(t));
-            int consume = cb((int)t->data, buffer_begin(t), buffer_size(t));
+            int consume = cb((int64_t)t->data, buffer_begin(t), buffer_size(t));
             if(consume == 0) break;
             buffer_consume(t, consume);
         } else if(buffer_size(t) >= sizeof(msg_handshake_t)) {
-            msg_handshake_t *hs = buffer_begin(t);
-            t->data = hs->node_id;
+            msg_handshake_t *hs = (msg_handshake_t*) buffer_begin(t);
+            t->data = (void*) hs->node_id;
             //slogf(DEBUG, "handshake %d\n", hs->node_id);
             buffer_consume(t, sizeof(msg_handshake_t));
         } else {
@@ -49,14 +49,14 @@ static void on_serv_conn(uv_stream_t *handle, int rc)
 
     uv_tcp_init(uv_default_loop(), cli);
 
-    uv_accept(handle, cli);
+    uv_accept(handle, (uv_stream_t*) cli);
 
     cli->data = buffer_init();
-    ((buffer_t)cli->data)->data = INT_MAX;
+    ((buffer_t)cli->data)->data = (void*) INT_MAX;
 
     slogf(DEBUG, "Connected\n");
 
-    uv_read_start(cli, buffer_alloc, on_serv_read);
+    uv_read_start((uv_stream_t*) cli, buffer_alloc, on_serv_read);
 }
 
 int serv_init(int port, read_cb pcb)

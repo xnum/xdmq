@@ -8,6 +8,7 @@
 #include "raft_callbacks.h"
 #include "persist.h"
 #include "consume.h"
+#include "msg.h"
 
 #define PERIOD 100
 
@@ -15,6 +16,33 @@ uv_timer_t timer;
 raft_server_t *raft = NULL;
 cli_ctx_t ctxs[5];
 msg_t msgs[5];
+QUEUE producers;
+
+void entry_response_check()
+{
+    static int cmt_idx = 0;
+    if(cmt_idx == raft_get_commit_idx(raft)) return;
+    cmt_idx = raft_get_commit_idx(raft);
+    QUEUE *iter;
+    QUEUE_FOREACH(iter, &producers) {
+        produce_t *producer = QUEUE_DATA(iter, produce_t, wait_queue);
+        QUEUE *it;
+        QUEUE_FOREACH(it, &producer->msg_head) {
+            p_entry_t *entry = QUEUE_DATA(it, p_entry_t, msg_queue);
+            msg_entry_response_t *resp = &entry->resp;
+
+            int e = raft_msg_entry_response_committed(raft, resp);
+            switch(e) {
+                case 0: /* not yet */
+                    break;
+                case 1: /* done */
+                default: /* error */
+                    produce_response(producer, entry, e);
+                    break;
+            }
+        }
+    }
+}
 
 void send_requestvote_response(cli_ctx_t *ctx, msg_requestvote_response_t *r)
 {
@@ -30,7 +58,7 @@ void send_requestvote_response(cli_ctx_t *ctx, msg_requestvote_response_t *r)
 
     uv_buf_t buf = uv_buf_init(sbuf.data, sbuf.size);
 
-    int e = uv_try_write(&ctx->client, &buf, 1);
+    int e = uv_try_write((uv_stream_t*) &ctx->client, &buf, 1);
     if(e < 0) slogf(ERR, "%s\n", uv_strerror(e));
 
     msgpack_sbuffer_destroy(&sbuf);
@@ -50,50 +78,42 @@ void send_appendentries_response(cli_ctx_t *ctx, msg_appendentries_response_t *r
 
     uv_buf_t buf = uv_buf_init(sbuf.data, sbuf.size);
 
-    int e = uv_try_write(&ctx->client, &buf, 1);
+    int e = uv_try_write((uv_stream_t*) &ctx->client, &buf, 1);
     if(e < 0) slogf(ERR, "%s\n", uv_strerror(e));
 
     msgpack_sbuffer_destroy(&sbuf);
 }
 
-int on_recv_msg(int node_id, const char* addr, int len)
+int on_recv_msg(uv_tcp_t *conn, const char* addr, int len)
 {
-    enum STATUS {
-        NONE,
-        ON_THE_FLY,
-    };
+    produce_t *prod = container_of(conn, produce_t, conn);
 
-    msg_entry_t entry = { 
-        .data.buf = strndup(addr, len),
-        .data.len = len 
-    };
+    // leader check
+    raft_node_t* leader = raft_get_current_leader_node(raft);
+    int leader_id = raft_node_get_id(leader);
+    assert(leader);
 
-    static msg_entry_response_t resp = {};
-    static int status = NONE;
+    if(!raft_is_leader(raft))
+        return -8000 - leader_id;
 
-    if(status != NONE) {
-        int e = raft_msg_entry_response_committed(raft, &resp);
-        switch(e) {
-            case 0:
-                return 1;
-            case 1:
-                status = NONE;
-                break;
-            default:
-                return -1;
-        }
-    }
+    //if(len > member_size(entry_t, data)) return 1;
 
-    int e = raft_recv_entry(raft, &entry, &resp);
-    status = ON_THE_FLY;
+    msg_exch_t *msg = addr;
+    // object init
+    p_entry_t *entry = calloc(1, sizeof(p_entry_t));
+    entry->req.data.buf = strndup(msg->text, member_size(msg_exch_t, text));
+    entry->req.data.len = member_size(msg_exch_t, text);
+    entry->req.id = msg->id;
+
+    QUEUE_INSERT_TAIL(&prod->msg_head, &entry->msg_queue);
+
+    int e = raft_recv_entry(raft, &entry->req, &entry->resp);
     switch (e) {
         case 0:
-            slogf(INFO, "raft_recv_entry = OK\n");
             break;
         case RAFT_ERR_NOT_LEADER:
             slogf(WARN, "I'm not leader\n");
-            return -1;
-            break;
+            return -8000 - leader_id;
         default:
             slogf(WARN, "raft_recv_entry = %d\n", e);
             break;
@@ -102,7 +122,21 @@ int on_recv_msg(int node_id, const char* addr, int len)
     return 0;
 }
 
-int read_pac(int node_id, const char* addr, int len)
+int on_new_conn(produce_t *prod)
+{
+    QUEUE_INSERT_HEAD(&producers, &prod->wait_queue);
+
+    return 0;
+}
+
+int on_disconn(produce_t *prod)
+{
+    QUEUE_REMOVE(&prod->wait_queue);
+
+    return 0;
+}
+
+int read_pac(int64_t node_id, const char* addr, int len)
 {
     msgpack_unpacked result;
     msgpack_unpacked_init(&result);
@@ -123,12 +157,14 @@ int read_pac(int node_id, const char* addr, int len)
                     );
             */
             if(msgs[node_id].type == MSG_REQUESTVOTE) {
+                /*
                 slogf(DEBUG, "Request Vote term:%d candidate_id:%d last_log_idx:%d last_log_term:%d\n",
                         msgs[node_id].rv.term,
                         msgs[node_id].rv.candidate_id,
                         msgs[node_id].rv.last_log_idx,
                         msgs[node_id].rv.last_log_term
                      );
+                     */
 
                 msg_requestvote_response_t rvr;
                 raft_recv_requestvote(raft, ctxs[node_id].node, &msgs[node_id].rv, &rvr);
@@ -137,17 +173,19 @@ int read_pac(int node_id, const char* addr, int len)
             }
 
             if(msgs[node_id].type == MSG_REQUESTVOTE_RESPONSE) {
+                /*
                 slogf(DEBUG, "Request Vote Response term:%d grant:%d\n", 
                         msgs[node_id].rvr.term,
                         msgs[node_id].rvr.vote_granted);
+                        */
                 raft_recv_requestvote_response(raft, ctxs[node_id].node, &msgs[node_id].rvr);
                 if(raft_is_leader(raft))
                     slogf(INFO, "Leader is me\n");
             }
 
             if(msgs[node_id].type == MSG_APPENDENTRIES) {
-                if(msgs[node_id].ae.n_entries)
-                    slogf(DEBUG, "Append Entry entries# = %d\n", msgs[node_id].ae.n_entries);
+                //if(msgs[node_id].ae.n_entries)
+                    //slogf(DEBUG, "Append Entry entries# = %d\n", msgs[node_id].ae.n_entries);
                 msg_appendentries_response_t aer;
                 int e = raft_recv_appendentries(raft, ctxs[node_id].node, &msgs[node_id].ae, &aer);
 
@@ -157,6 +195,7 @@ int read_pac(int node_id, const char* addr, int len)
             if(msgs[node_id].type == MSG_APPENDENTRIES_RESPONSE) {
                 //slogf(DEBUG, "Append Entry Response\n");
                 raft_recv_appendentries_response(raft, ctxs[node_id].node, &msgs[node_id].aer);
+                entry_response_check();
             }
 
             free(msgs[node_id].ae.entries);
@@ -249,6 +288,8 @@ void on_time(uv_timer_t *t)
     }
 
     raft_periodic(raft, PERIOD);
+
+    entry_response_check();
 }
 
 void log(
@@ -263,14 +304,18 @@ void log(
 
 int main(int argc, char **argv)
 {
+    srand(time(NULL));
+
+    QUEUE_INIT(&producers);
+
     signal(SIGPIPE, SIG_IGN);
 
     enable_coredump();
 
     assert(argc == 3);
-    int id = atoi(argv[1]);
+    int64_t id = atoi(argv[1]);
     int total = atoi(argv[2]);
-    slogf(INFO, "id = %d\n", id);
+    slogf(INFO, "id = %lld\n", id);
 
     persist_init("xdmq.mmap", id);
 
@@ -295,7 +340,7 @@ int main(int argc, char **argv)
         .log                         = NULL
     };
 
-    char* user_data = id;
+    void* user_data = id;
 
     raft_set_callbacks(raft, &raft_callbacks, user_data);
 
@@ -316,7 +361,10 @@ int main(int argc, char **argv)
         }
 
     /* Producer */
-    producer_init(8000+id, on_recv_msg);
+    produce_init(8000+id);
+    produce_set_read_callback(on_recv_msg);
+    produce_set_connected_callback(on_new_conn);
+    produce_set_disconnected_callback(on_disconn);
     consume_init(7000+id);
 
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);

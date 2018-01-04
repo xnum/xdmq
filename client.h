@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <msgpack.h>
 #include "logger.h"
+#include "server.h"
+#include "produce.h"
 #include "buffer.h"
 #include "raft_ext.h"
 

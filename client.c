@@ -11,7 +11,7 @@ static void on_cli_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
     cli_ctx_t *ctx = container_of((uv_tcp_t*)cli, cli_ctx_t, client);
 
     if(st < 0) {
-        slogf(ERR, "%s\n", se(st));
+        //slogf(ERR, "%s\n", se(st));
         uv_close(&ctx->client, handle_close);
         return;
     }

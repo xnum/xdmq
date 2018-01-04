@@ -78,7 +78,7 @@ int applylog(
         raft_entry_t *ety
         )
 {
-    FILE* f = NULL;
+    static FILE* f = NULL;
     if(!f) {
         char tmp[128] = {};
         snprintf(tmp, 128, "xdmq.out.%d", (int) udata);
@@ -86,11 +86,11 @@ int applylog(
     }
 
     int len = ety->data.len;
-    slogf(INFO, "applying log %d %*.*s\n", len, len, len, ety->data.buf);
+    //slogf(INFO, "applying log %d %*.*s\n", len, len, len, ety->data.buf);
+    assert(f != NULL);
     fprintf(f, "%*.*s\n", len, len, ety->data.buf);
     fflush(f);
     set_committed_index(raft_get_commit_idx(raft));
-    free(ety->data.buf);
     return 0;
 }
 
@@ -123,11 +123,13 @@ int logentry_offer(
         )
 {
     int len = ety->data.len;
+    /*
     slogf(INFO, "offer log %*.*s\n", len, len, ety->data.buf);
     slogf(INFO, "now = %d\tcmt_idx = %d\tlast applied = %d\t", 
             ety_idx,
             raft_get_commit_idx(raft),
             raft_get_last_applied_idx(raft));
+            */
     persist_entry(ety);
     return 0;
 }

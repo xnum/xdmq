@@ -15,7 +15,6 @@
                      const typeof( ((type *)0)->member ) *__mptr = (ptr); \
                      (type *)( (char *)__mptr - offsetof(type,member) );})
 
-typedef int(*read_cb)(int node_id, const char* addr, int len);
 
 struct buffer_s {
     int ava_size; 

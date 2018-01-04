@@ -18,7 +18,7 @@ typedef struct persist_s {
 
 static int fd;
 static persist_t *data;
-static const int size = sizeof(persist_t) + 100000;
+static const int size = sizeof(persist_t) + 1024 * 1024 * sizeof(entry_t); /* 48B */
 
 void persist_init(const char* ident, int n)
 {
@@ -43,6 +43,8 @@ void persist_init(const char* ident, int n)
             data->cmt_idx,
             data->n_entry
             );
+
+    slogf(INFO, "Total available entries # = %d\n", (size-sizeof(persist_t)) / sizeof(entry_t));
 }
 
 entry_t* get_entry(int n)
@@ -95,10 +97,13 @@ void persist_entry(msg_entry_t *entry)
     if((void*)disk - (void*)data >= size) {
         slogf(CRIT, "memory overflow\n");
     }
+
     disk->term = entry->term;
     disk->id = entry->id;
     disk->type = entry->type;
     memcpy(disk->data, entry->data.buf, entry->data.len);
+    free(entry->data.buf);
+    entry->data.buf = disk->data;
     data->n_entry++;
 }
 
