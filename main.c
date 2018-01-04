@@ -7,6 +7,7 @@
 #include "produce.h"
 #include "raft_callbacks.h"
 #include "persist.h"
+#include "consume.h"
 
 #define PERIOD 100
 
@@ -316,6 +317,7 @@ int main(int argc, char **argv)
 
     /* Producer */
     producer_init(8000+id, on_recv_msg);
+    consume_init(7000+id);
 
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }

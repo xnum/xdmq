@@ -7,14 +7,6 @@
 #include <fcntl.h>
 #include "logger.h"
 
-typedef struct entry_s {
-    int term;
-    int id;
-    int type;
-    int len;
-    char data[32];
-} entry_t;
-
 typedef struct persist_s {
     int set;
     int term;
@@ -51,6 +43,11 @@ void persist_init(const char* ident, int n)
             data->cmt_idx,
             data->n_entry
             );
+}
+
+entry_t* get_entry(int n)
+{
+    return &data->entry[n];
 }
 
 void set_term(int t)

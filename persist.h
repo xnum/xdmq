@@ -1,6 +1,16 @@
 #pragma once
 #include "raft.h"
 
+typedef struct entry_s {
+    int term;
+    int id;
+    int type;
+    int len;
+    char data[32];
+} entry_t;
+
+
+entry_t* get_entry(int n);
 void persist_init(const char*, int);
 void set_term(int);
 void set_vote(int);
