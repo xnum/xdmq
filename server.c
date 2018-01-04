@@ -41,7 +41,7 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 static void on_serv_conn(uv_stream_t *handle, int rc)
 {
     if(rc < 0) {
-        slogf(ERR, "%s\n", se(rc));
+        //slogf(ERR, "%s\n", se(rc));
         return;
     }
 

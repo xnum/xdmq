@@ -27,9 +27,8 @@ int send_requestvote(
     uv_buf_t bufs[1];
     bufs[0] = uv_buf_init(sbuf.data, sbuf.size);
 
-    int e = uv_try_write(&conn->client, bufs, 1);
-    if (e < 0)
-        slogf(ERR, "%s\n", uv_strerror(e));
+    if(conn->status == 1)
+        uv_try_write(&conn->client, bufs, 1);
 
     msgpack_sbuffer_destroy(&sbuf);
     return 0;
@@ -55,12 +54,9 @@ int send_appendentries(
     msgpack_pack_bin(&pk, sizeof(msg_appendentries_t));
     msgpack_pack_bin_body(&pk, m, sizeof(msg_appendentries_t));
 
-    // TODO log?
-    /* let us ignore log */
     for(int i = 0; i < m->n_entries; ++i) {
         msgpack_pack_bin(&pk, sizeof(msg_entry_t));
         msgpack_pack_bin_body(&pk, &m->entries[i], sizeof(msg_entry_t));
-        //msgpack_pack_int(&pk, m->entries[i].data.len);
         msgpack_pack_bin(&pk, m->entries[i].data.len);
         msgpack_pack_bin_body(&pk, m->entries[i].data.buf, m->entries[i].data.len);
     }
@@ -68,9 +64,8 @@ int send_appendentries(
     uv_buf_t bufs[1];
     bufs[0] = uv_buf_init(sbuf.data, sbuf.size);
 
-    int e = uv_try_write(&conn->client, bufs, 1);
-    if (e < 0)
-        slogf(ERR, "%s\n", uv_strerror(e));
+    if(conn->status == 1)
+        uv_try_write(&conn->client, bufs, 1);
 
     msgpack_sbuffer_destroy(&sbuf);
     return 0;
@@ -83,8 +78,19 @@ int applylog(
         raft_entry_t *ety
         )
 {
-    slogf(INFO, "applying log %s\n", ety->data.buf);
+    FILE* f = NULL;
+    if(!f) {
+        char tmp[128] = {};
+        snprintf(tmp, 128, "xdmq.out.%d", (int) udata);
+        f = fopen(tmp, "a+");
+    }
+
+    int len = ety->data.len;
+    slogf(INFO, "applying log %d %*.*s\n", len, len, len, ety->data.buf);
+    fprintf(f, "%*.*s\n", len, len, ety->data.buf);
+    fflush(f);
     set_committed_index(raft_get_commit_idx(raft));
+    free(ety->data.buf);
     return 0;
 }
 
@@ -116,7 +122,12 @@ int logentry_offer(
         int ety_idx
         )
 {
-    slogf(INFO, "offer log %s\n", ety->data.buf);
+    int len = ety->data.len;
+    slogf(INFO, "offer log %*.*s\n", len, len, ety->data.buf);
+    slogf(INFO, "now = %d\tcmt_idx = %d\tlast applied = %d\t", 
+            ety_idx,
+            raft_get_commit_idx(raft),
+            raft_get_last_applied_idx(raft));
     persist_entry(ety);
     return 0;
 }

@@ -26,7 +26,7 @@ static void on_cli_conn(uv_connect_t *conn, int st)
     cli_ctx_t *ctx = container_of(conn, cli_ctx_t, conn);
 
     if(st < 0) {
-        slogf(ERR, "%s:%d %s\n", ctx->host, ctx->port, se(st));
+        //slogf(ERR, "%s:%d %s\n", ctx->host, ctx->port, se(st));
         ctx->status = 0;
         return;
         //exit(1);

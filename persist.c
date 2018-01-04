@@ -12,7 +12,7 @@ typedef struct entry_s {
     int id;
     int type;
     int len;
-    char data[128];
+    char data[32];
 } entry_t;
 
 typedef struct persist_s {
@@ -26,10 +26,10 @@ typedef struct persist_s {
 
 static int fd;
 static persist_t *data;
+static const int size = sizeof(persist_t) + 100000;
 
 void persist_init(const char* ident, int n)
 {
-    int size = sizeof(persist_t) + 10000;
     char tmp[256] = {};
     snprintf(tmp, 256, "%s.%d", ident, n);
 
@@ -95,10 +95,13 @@ void persist_entry(msg_entry_t *entry)
 {
     int idx = data->n_entry;
     entry_t *disk = &data->entry[idx];
+    if((void*)disk - (void*)data >= size) {
+        slogf(CRIT, "memory overflow\n");
+    }
     disk->term = entry->term;
     disk->id = entry->id;
     disk->type = entry->type;
-    strncpy(disk->data, entry->data.buf, 128);
+    memcpy(disk->data, entry->data.buf, entry->data.len);
     data->n_entry++;
 }
 
@@ -107,16 +110,25 @@ void set_committed_index(int idx)
     data->cmt_idx = idx;
 }
 
-void persist_load_entries(raft_server_t *raft)
+// load order is very important
+void persist_load(raft_server_t *raft)
 {
+    if(!data->set)return;
+
     for(int i = 0; i < data->n_entry; ++i) {
         msg_entry_t ent;
         entry_t *d = &data->entry[i];
         ent.term = d->term;
         ent.id = d->id;
         ent.type = d->type;
-        ent.data.buf = d->data;
         ent.data.len = strlen(d->data);
+        ent.data.buf = strdup(d->data); // prevent double-freed at applylog()
         raft_append_entry(raft, &ent);
     }
+
+    raft_set_commit_idx(raft, data->cmt_idx);
+    raft_apply_all(raft);
+
+    raft_set_current_term(raft, data->term);
+    raft_vote_for_nodeid(raft, data->vote);
 }

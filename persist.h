@@ -8,4 +8,4 @@ int get_term();
 int get_vote();
 void persist_entry(msg_entry_t*);
 void set_committed_index(int idx);
-void persist_load_entries(raft_server_t *);
+void persist_load(raft_server_t *);

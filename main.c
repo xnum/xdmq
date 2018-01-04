@@ -8,7 +8,7 @@
 #include "raft_callbacks.h"
 #include "persist.h"
 
-#define PERIOD 1000
+#define PERIOD 100
 
 uv_timer_t timer;
 raft_server_t *raft = NULL;
@@ -63,14 +63,12 @@ int on_recv_msg(int node_id, const char* addr, int len)
     };
 
     msg_entry_t entry = { 
-        .data.buf = addr,
+        .data.buf = strndup(addr, len),
         .data.len = len 
     };
 
     static msg_entry_response_t resp = {};
     static int status = NONE;
-
-    slogf(INFO, "data = %s %d\n", addr, len);
 
     if(status != NONE) {
         int e = raft_msg_entry_response_committed(raft, &resp);
@@ -93,6 +91,7 @@ int on_recv_msg(int node_id, const char* addr, int len)
             break;
         case RAFT_ERR_NOT_LEADER:
             slogf(WARN, "I'm not leader\n");
+            return -1;
             break;
         default:
             slogf(WARN, "raft_recv_entry = %d\n", e);
@@ -159,13 +158,7 @@ int read_pac(int node_id, const char* addr, int len)
                 raft_recv_appendentries_response(raft, ctxs[node_id].node, &msgs[node_id].aer);
             }
 
-            msg_t *msg = &msgs[node_id];
-            msg_entry_t *entry = msg->ae.entries;
-            for(int i = 0; i < msg->ae.n_entries; ++i) {
-                //free(entry[i].data.buf);
-            }
-            //free(entry);
-
+            free(msgs[node_id].ae.entries);
             memset(&msgs[node_id], 0, sizeof(msgs[0]));
         }
 
@@ -271,6 +264,7 @@ int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
 
+    enable_coredump();
 
     assert(argc == 3);
     int id = atoi(argv[1]);
@@ -286,17 +280,7 @@ int main(int argc, char **argv)
     for(int i = 0; i < total; ++i)
         ctxs[i].node = raft_add_node(raft, &ctxs[i], i, id == i);
 
-    int t = get_term();
-    int v = get_vote();
-    int idx = get_cmt_idx();
-    if(t != -1)
-        raft_set_current_term(raft, t);
-    if(v != -1)
-        raft_vote_for_nodeid(raft, v);
-    persist_load_entries(raft);
-    if(idx != -1)
-        raft_set_commit_idx(raft, idx);
-
+    persist_load(raft);
 
     raft_cbs_t raft_callbacks = {
         .send_requestvote            = send_requestvote,
@@ -307,10 +291,10 @@ int main(int argc, char **argv)
         .log_offer                   = logentry_offer,
         .log_poll                    = logentry_poll,
         .log_pop                     = logentry_pop,
-        .log                         = log
+        .log                         = NULL
     };
 
-    char* user_data = "test";
+    char* user_data = id;
 
     raft_set_callbacks(raft, &raft_callbacks, user_data);
 
