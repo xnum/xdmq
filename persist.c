@@ -36,6 +36,7 @@ void persist_init(const char* ident, int n)
 
     data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); 
 
+    /*
     slogf(INFO, "set=%d\nterm=%d\nvote=%d\ncommit_index=%d\nn_entry=%d\n", 
             data->set,
             data->term,
@@ -43,6 +44,7 @@ void persist_init(const char* ident, int n)
             data->cmt_idx,
             data->n_entry
             );
+            */
 
     slogf(INFO, "Total available entries # = %d\n", (size-sizeof(persist_t)) / sizeof(entry_t));
 }
@@ -56,14 +58,14 @@ void set_term(int t)
 {
     data->set = 1;
     data->term = t;
-    slogf(INFO, "set term = %d\n", data->term);
+    //slogf(INFO, "set term = %d\n", data->term);
 }
 
 void set_vote(int v)
 {
     data->set = 1;
     data->vote = v;
-    slogf(INFO, "set vote = %d\n", data->vote);
+    //slogf(INFO, "set vote = %d\n", data->vote);
 }
 
 int get_term()

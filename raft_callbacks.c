@@ -88,7 +88,7 @@ int applylog(
     int len = ety->data.len;
     //slogf(INFO, "applying log %d %*.*s\n", len, len, len, ety->data.buf);
     assert(f != NULL);
-    fprintf(f, "%*.*s\n", len, len, ety->data.buf);
+    fprintf(f, "%*.*s\n", 32, 32, ety->data.buf);
     fflush(f);
     set_committed_index(raft_get_commit_idx(raft));
     return 0;

@@ -34,7 +34,13 @@ void produce_response(produce_t * prod, p_entry_t * ety, int rc)
     uv_write_t *req = calloc(1, sizeof(uv_write_t));
     req->data = data;
 
-    snprintf(msg, 128, "%s[%x]", rc==1?"OK":"ERR", ety->req.id);
+    if(rc == 1)
+        snprintf(msg, 128, "OK %x", ety->req.id);
+    else if(rc == -1)
+        snprintf(msg, 128, "Error %x", ety->req.id);
+    else
+        snprintf(msg, 128, "Leader %d %x", -rc-8000, ety->req.id);
+
 
     uv_buf_t buf_wrap = uv_buf_init(msg, 128);
     int e = uv_write(req, (uv_stream_t*) &prod->conn, &buf_wrap, 1, handle_write);
@@ -67,7 +73,7 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 
     char *ptr = buffer_begin(t);
     for(int idx = 1; idx*sizeof(msg_exch_t) <= buffer_size(t); ++idx) {
-        r_cb((uv_tcp_t*) cli, ptr+((idx-1) * sizeof(msg_exch_t)), sizeof(msg_exch_t));
+        int n = r_cb((uv_tcp_t*) cli, ptr+((idx-1) * sizeof(msg_exch_t)), sizeof(msg_exch_t));
     }
     buffer_consume(t, (buffer_size(t)/sizeof(msg_exch_t))*sizeof(msg_exch_t));
 }

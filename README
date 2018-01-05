@@ -33,3 +33,21 @@ send line-end message
 ## Performance
 
 1024 * 256 messages from seperate 4 producers => 54s
+
+## Known Bugs
+
+### missing latest line
+
+1. producers sending data
+2. follower disconnected
+3. follower reconnected
+4. leader keeps check latest message commited
+5. followers missed latest data compares with leader
+
+If clients reconnect and sends data continusly, all logs are keep same
+
+For this bug, because the client waits for the log commit and don't do anything.
+And leader wait for append entry response, there aren't any data produced.
+therefore no log check procedure were triggered.
+
+So if any request timedout happened, the producer should just reconnect and send again.

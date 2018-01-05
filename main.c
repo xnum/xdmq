@@ -10,7 +10,7 @@
 #include "consume.h"
 #include "msg.h"
 
-#define PERIOD 100
+#define PERIOD 1000
 
 uv_timer_t timer;
 raft_server_t *raft = NULL;
@@ -20,9 +20,11 @@ QUEUE producers;
 
 void entry_response_check()
 {
+    /*
     static int cmt_idx = 0;
     if(cmt_idx == raft_get_commit_idx(raft)) return;
     cmt_idx = raft_get_commit_idx(raft);
+    */
     QUEUE *iter;
     QUEUE_FOREACH(iter, &producers) {
         produce_t *producer = QUEUE_DATA(iter, produce_t, wait_queue);
@@ -31,6 +33,7 @@ void entry_response_check()
             p_entry_t *entry = QUEUE_DATA(it, p_entry_t, msg_queue);
             msg_entry_response_t *resp = &entry->resp;
 
+            slogf(DEBUG, "Checking %llu\n", entry->req.id);
             int e = raft_msg_entry_response_committed(raft, resp);
             switch(e) {
                 case 0: /* not yet */
@@ -89,14 +92,7 @@ int on_recv_msg(uv_tcp_t *conn, const char* addr, int len)
     produce_t *prod = container_of(conn, produce_t, conn);
 
     // leader check
-    raft_node_t* leader = raft_get_current_leader_node(raft);
-    int leader_id = raft_node_get_id(leader);
-    assert(leader);
-
-    if(!raft_is_leader(raft))
-        return -8000 - leader_id;
-
-    //if(len > member_size(entry_t, data)) return 1;
+    int leader_id = raft_get_current_leader(raft);
 
     msg_exch_t *msg = addr;
     // object init
@@ -112,8 +108,9 @@ int on_recv_msg(uv_tcp_t *conn, const char* addr, int len)
         case 0:
             break;
         case RAFT_ERR_NOT_LEADER:
-            slogf(WARN, "I'm not leader\n");
-            return -8000 - leader_id;
+            slogf(WARN, "I'm not leader, is %d\n", leader_id);
+            produce_response(prod, entry, -8000 - leader_id);
+            break;
         default:
             slogf(WARN, "raft_recv_entry = %d\n", e);
             break;
@@ -179,8 +176,7 @@ int read_pac(int64_t node_id, const char* addr, int len)
                         msgs[node_id].rvr.vote_granted);
                         */
                 raft_recv_requestvote_response(raft, ctxs[node_id].node, &msgs[node_id].rvr);
-                if(raft_is_leader(raft))
-                    slogf(INFO, "Leader is me\n");
+                slogf(INFO, "Leader is %d\n", raft_get_current_leader(raft));
             }
 
             if(msgs[node_id].type == MSG_APPENDENTRIES) {

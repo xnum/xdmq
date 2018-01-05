@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-for i in $(seq 0 3)
+for i in $(seq 0 2)
 do
-    ./main $i &
+    ./main $i 3 &
 done

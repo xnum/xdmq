@@ -35,6 +35,7 @@ static void on_cli_conn(uv_connect_t *conn, int st)
     int rc = uv_read_start((uv_stream_t*)&ctx->client, buffer_alloc, on_cli_read);
 
     msg_handshake_t hs;
+    hs.passcode = PASSCODE;
     hs.node_id = ctx->self_id;
 
     uv_buf_t bufs = uv_buf_init(&hs, sizeof(hs));

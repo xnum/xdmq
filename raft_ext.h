@@ -45,7 +45,10 @@ typedef enum
     MSG_APPENDENTRIES_RESPONSE,
 } peer_message_type_e;
 
+#define PASSCODE 5566183
+
 typedef struct
 {
+    int64_t passcode;
     int64_t node_id;
 } msg_handshake_t;

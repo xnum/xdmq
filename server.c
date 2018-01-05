@@ -29,6 +29,10 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
             buffer_consume(t, consume);
         } else if(buffer_size(t) >= sizeof(msg_handshake_t)) {
             msg_handshake_t *hs = (msg_handshake_t*) buffer_begin(t);
+            if(hs->passcode != PASSCODE) {
+                uv_close(cli, handle_close);
+                return;
+            }
             t->data = (void*) hs->node_id;
             //slogf(DEBUG, "handshake %d\n", hs->node_id);
             buffer_consume(t, sizeof(msg_handshake_t));
