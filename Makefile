@@ -1,6 +1,6 @@
 CC=gcc
-PROJ=/home/num/xdmq
-INC=-I${PROJ}/lib/raft/include -Iinclude
+PROJ=/home/ubuntu/xdmq
+INC=-I${PROJ}/lib/raft/include -Iinclude -I${PROJ}/lib/b64
 CFLAGS=-fPIC -O2 $(INC) -g # -fsanitize=address
 LDFLAGS=${PROJ}/lib/libuv/.libs/libuv.a ${PROJ}/lib/raft/libraft.a ${PROJ}/lib/msgpack-c/libmsgpackc.a -pthread
 
@@ -11,7 +11,7 @@ OBJS = $(patsubst %,obj/%,$(OTMP))
 
 all: xdmq
 
-xdmq: $(OBJS)
+xdmq: $(OBJS) lib/b64/b64encode.o lib/b64/b64decode.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 obj/%.o: src/%.c

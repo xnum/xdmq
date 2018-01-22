@@ -1,5 +1,6 @@
 #include "consume.h"
 #include "persist.h"
+#include "b64.h"
 
 
 static uv_tcp_t serv;
@@ -9,8 +10,8 @@ static int do_cmd(uv_stream_t *cli, char* addr, int len)
     len--;
     printf("msg = %s %d\n", addr, len);
     int cmt_idx = get_cmt_idx();
-    /* GET N M: get entry from N to M */
-    if( 0 == memcmp(addr, "GETA", 3)) {
+    /* GETA N M: get entry from N to M */
+    if( 0 == memcmp(addr, "GETA", 4)) {
         int n = -1, m = -1;
         sscanf(addr, "%*s %d %d", &n, &m);
         if(m>=cmt_idx) {
@@ -23,8 +24,8 @@ static int do_cmd(uv_stream_t *cli, char* addr, int len)
             for(int k = n; k < m; ++k) {
                 entry_t *ety = get_entry(k);
 
-                char buf[128] = {};
-                snprintf(buf, 128, "[%d] = %s\n", k, ety->text);
+                char buf[256] = {};
+                snprintf(buf, 256, "%d %s\n", k, ety->text);
                 uv_buf_t buf_wrap = uv_buf_init(buf, strlen(buf));
                 uv_try_write(cli, &buf_wrap, 1);
             }

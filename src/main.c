@@ -33,7 +33,7 @@ void entry_response_check()
             p_entry_t *entry = QUEUE_DATA(it, p_entry_t, msg_queue);
             msg_entry_response_t *resp = &entry->resp;
 
-            slogf(DEBUG, "Checking %llu\n", entry->req.id);
+            slogf(DEBUG, "Checking %x\n", entry->req.id);
             int e = raft_msg_entry_response_committed(raft, resp);
             switch(e) {
                 case 0: /* not yet */

@@ -2,6 +2,7 @@
  * tcpclient.c - A simple TCP client
  * usage: tcpclient <host> <port>
  */
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,8 @@ int main(int argc, char **argv) {
 	if (connect(sockfd, &serveraddr, sizeof(serveraddr)) < 0) 
 		error("ERROR connecting");
 
+    assert(sizeof(msg_exch_t) == 8 + 32);
+
 	/* get message line from the user */
     const char alnum[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	int i = 0, j = 0;
@@ -71,14 +74,23 @@ int main(int argc, char **argv) {
         unsigned long long int rand32bitA = rand() ^ (rand() << 8) ^ (rand() << 16) ^ (rand() << 24);
         unsigned long long int rand32bitB = rand() ^ (rand() << 8) ^ (rand() << 16) ^ (rand() << 24);
 
+        sleep(1);
+
         msg_exch_t msg = {};
-        msg.id = rand32bitA << 32 | rand32bitB;
-        for(j = 0; j < 31; ++j) {
-            msg.text[j] = alnum[rand() % (sizeof(alnum)-1)];
-        }
+        msg.id = rand32bitB;
+        int user_id = rand() % 5 + 1;
+        int stock_id = rand() % 3 + 3000;
+        int is_buy = rand() % 2;
+        int price = (-1500 + rand() % 3000) + 10000;
+        int num = rand() % 10;
+
+        snprintf(msg.text, 32, "%04d %4d %1d %06d %3d",
+                    user_id, stock_id, is_buy, price, num);
 
         while(1) {
-            printf("Write %8d/%d %x %s\n", i, RUNS, msg.id, msg.text);
+
+            printf("Write %8d/%d %x | %s\n", i, RUNS, 
+                    msg.id, msg.text);
             n = write(sockfd, &msg, sizeof(msg));
             if (n < 0) 
                 error("ERROR writing to socket");
