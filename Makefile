@@ -9,13 +9,13 @@ OBJS = $(patsubst %,obj/%,$(OTMP))
 
 # OBJS=main.o server.o client.o buffer.o raft_callbacks.o produce.o persist.o coredump.o consume.o
 
-all: main
+all: xdmq
 
-main: $(OBJS)
+xdmq: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -o $@ $^ -c
 
 clean:
-	rm -f obj/* main
+	rm -f obj/* xdmq
