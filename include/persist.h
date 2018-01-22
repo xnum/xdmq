@@ -1,12 +1,15 @@
 #pragma once
 #include "raft.h"
+#include "msg.h"
+
+#define member_size(type, member) sizeof(((type *)0)->member)
 
 typedef struct entry_s {
     int term;
     int id;
     int type;
     int len;
-    char data[32];
+    char text[MSG_SIZE];
 } entry_t;
 
 

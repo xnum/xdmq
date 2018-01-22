@@ -103,9 +103,9 @@ void persist_entry(msg_entry_t *entry)
     disk->term = entry->term;
     disk->id = entry->id;
     disk->type = entry->type;
-    memcpy(disk->data, entry->data.buf, entry->data.len);
+    memcpy(disk->text, entry->data.buf, entry->data.len);
     free(entry->data.buf);
-    entry->data.buf = disk->data;
+    entry->data.buf = disk->text;
     data->n_entry++;
 }
 
@@ -125,8 +125,8 @@ void persist_load(raft_server_t *raft)
         ent.term = d->term;
         ent.id = d->id;
         ent.type = d->type;
-        ent.data.len = strlen(d->data);
-        ent.data.buf = strdup(d->data); // prevent double-freed at applylog()
+        ent.data.len = member_size(entry_t, text);
+        ent.data.buf = d->text; // prevent double-freed at applylog()
         raft_append_entry(raft, &ent);
     }
 

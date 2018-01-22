@@ -135,6 +135,14 @@ int on_disconn(produce_t *prod)
 
 int read_pac(int64_t node_id, const char* addr, int len)
 {
+    if(addr == NULL) {
+        if(node_id >= 0 && node_id < sizeof(ctxs) / sizeof(ctxs[0])) {
+            msgpack_unpacker_free(ctxs[node_id].unp);
+            ctxs[node_id].unp = msgpack_unpacker_new(128);
+        }
+        return -1;
+    }
+
     msgpack_unpacked result;
     msgpack_unpacked_init(&result);
     if(msgpack_unpacker_buffer_capacity(ctxs[node_id].unp) < len) {
@@ -319,6 +327,7 @@ int main(int argc, char **argv)
     uv_timer_start(&timer, on_time, 0, PERIOD);
 
     raft = raft_new();
+    raft_set_election_timeout(raft, 3000);
     for(int i = 0; i < total; ++i)
         ctxs[i].node = raft_add_node(raft, &ctxs[i], i, id == i);
 

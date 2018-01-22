@@ -12,6 +12,7 @@ static void on_cli_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 
     if(st < 0) {
         //slogf(ERR, "%s\n", se(st));
+        ctx->r_cb(ctx->node_id, NULL, -1);
         uv_close(&ctx->client, handle_close);
         return;
     }

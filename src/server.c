@@ -12,13 +12,15 @@ static void handle_close(uv_handle_t *cli)
 
 static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
 {
+    buffer_t t = cli->data;
+
     if(st < 0) {
         slogf(ERR, "%s\n", se(st));
+        cb((int64_t)t->data, NULL, -1);
         uv_close((uv_handle_t*) cli, handle_close);
         return;
     }
 
-    buffer_t t = cli->data;
     buffer_produced(t, st);
 
     while(buffer_size(t)) {

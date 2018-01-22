@@ -10,7 +10,7 @@ static int do_cmd(uv_stream_t *cli, char* addr, int len)
     printf("msg = %s %d\n", addr, len);
     int cmt_idx = get_cmt_idx();
     /* GET N M: get entry from N to M */
-    if( 0 == memcmp(addr, "GET", 3)) {
+    if( 0 == memcmp(addr, "GETA", 3)) {
         int n = -1, m = -1;
         sscanf(addr, "%*s %d %d", &n, &m);
         if(m>=cmt_idx) {
@@ -24,7 +24,7 @@ static int do_cmd(uv_stream_t *cli, char* addr, int len)
                 entry_t *ety = get_entry(k);
 
                 char buf[128] = {};
-                snprintf(buf, 128, "[%d] = %s\n", k, ety->data);
+                snprintf(buf, 128, "[%d] = %s\n", k, ety->text);
                 uv_buf_t buf_wrap = uv_buf_init(buf, strlen(buf));
                 uv_try_write(cli, &buf_wrap, 1);
             }
@@ -36,6 +36,9 @@ static int do_cmd(uv_stream_t *cli, char* addr, int len)
         snprintf(buf, 128, "Commit index = %d\n", cmt_idx);
         uv_buf_t buf_wrap = uv_buf_init(buf, strlen(buf));
         uv_try_write(cli, &buf_wrap, 1);
+    }
+    else {
+        return -1;
     }
 
     return len;
@@ -65,6 +68,10 @@ static void on_serv_read(uv_stream_t *cli, ssize_t st, const uv_buf_t *buf)
         for(int i = 0; i < buffer_size(t); ++i) {
             if(ptr[i] == '\n') {
                 int e = do_cmd(cli, ptr, i);
+                if(e < 0) {
+                    uv_close(cli, handle_close);
+                    return;
+                }
                 buffer_consume(t, i+1);
                 found = true;
                 break;
