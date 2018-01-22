@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 
     enable_coredump();
 
-    assert(argc == 3);
+    //assert(argc == 3);
     int64_t id = atoi(argv[1]);
     int total = atoi(argv[2]);
     slogf(INFO, "id = %lld\n", id);
@@ -355,7 +355,7 @@ int main(int argc, char **argv)
 
     for(int i = 0; i < total; ++i)
         if(i != id) {
-            strncpy(ctxs[i].host, "127.0.0.1", IP_STR_LEN);
+            strncpy(ctxs[i].host, argv[i+3], IP_STR_LEN);
             ctxs[i].node_id = i;
             ctxs[i].port = 9000+i;
             ctxs[i].buff = buffer_init();
